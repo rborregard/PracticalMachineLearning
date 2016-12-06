@@ -5,4 +5,16 @@ date: "December 6, 2016"
 output: html_document
 ---
 
+##Download data
+
+```{r,echo=TRUE}
+# Download data.
+url_raw_training <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+file_dest_training <- "pml-training.csv"
+download.file(url=url_raw_training, destfile=file_dest_training, method="curl")
+url_raw_testing <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+file_dest_testing <- "pml-testing.csv"
+download.file(url=url_raw_testing, destfile=file_dest_testing, method="curl")
+```
+
 
