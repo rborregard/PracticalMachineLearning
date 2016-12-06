@@ -1,0 +1,8 @@
+---
+title: "Practical Machine Learning"
+author: "Randy Borregard"
+date: "December 6, 2016"
+output: html_document
+---
+
+
