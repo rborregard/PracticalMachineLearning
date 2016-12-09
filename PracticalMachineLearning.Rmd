@@ -5,16 +5,89 @@ date: "December 6, 2016"
 output: html_document
 ---
 
-##Download data
+###Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
 
+###Load any needed packages and download data
 ```{r,echo=TRUE}
-# Download data.
+
+library('caret')
+library('randomForest')
+library(ggplot2)
+
 url_raw_training <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
 file_dest_training <- "pml-training.csv"
 download.file(url=url_raw_training, destfile=file_dest_training, method="curl")
 url_raw_testing <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
 file_dest_testing <- "pml-testing.csv"
 download.file(url=url_raw_testing, destfile=file_dest_testing, method="curl")
+
+pml.training <- read.csv("./pml-training.csv")
+pml.testing <- read.csv("./pml-testing.csv")
 ```
 
+###Split Cross Validation data partition and remove missing data/features that won't be used
+```{r,echo=TRUE}
+#Split data into train/validation
+set.seed(123)
+inTrain <- createDataPartition(y=pml.training$classe, p=0.6, list=F)
+pml.training1 <- pml.training[inTrain, ]
+pml.training2 <- pml.training[-inTrain, ]
 
+#Remove features with near zero variance
+nzv <- nearZeroVar(pml.training1, saveMetrics = T)
+pml.training1 <- pml.training1[, !nzv$nzv]
+pml.training2 <- pml.training2[, !nzv$nzv]
+
+#Remove features with mostly NA
+trainNA <- sapply(pml.training1, function(x) mean(is.na(x))) > 0.95
+pml.training1 <- pml.training1[, !trainNA]
+pml.training2 <- pml.training2[, !trainNA]
+
+#Remove row number feature (first column)
+pml.training1 <- pml.training1[, -1]
+pml.training2 <- pml.training2[, -1]
+```
+
+###Model - Random Forest with 3 fold cross validation
+```{r,echo=TRUE}
+rfFit <- train(classe ~ ., method = 'rf', data = pml.training1,importance = T, trControl = trainControl(method = "cv", number = 3))
+
+# Run model against validation set
+validation <- predict(rfFit, newdata=pml.training2)
+```
+
+```{r,echo=TRUE}
+# Show confusion matrix for out-of-sample error
+confusionMatrix(pml.training2$classe, validation)
+
+# Plot results
+rfFit
+plot(rfFit, ylim = c(0.9, 1))
+```
+
+>Model accuracy is 99.95% and out of sample error is .05% on the validation data.
+
+###Retraining on Full data
+```{r,echo=TRUE}
+nzv <- nearZeroVar(pml.training, saveMetrics = T)
+pml.training <- pml.training[, !nzv$nzv]
+
+trainNA2 <- sapply(pml.training, function(x) mean(is.na(x))) > 0.95
+pml.training <- pml.training[, !trainNA2]
+
+pml.training <- pml.training[, -1]
+
+rfFit_Final <- train(classe ~ ., method = 'rf', data = pml.training, importance = T, trControl = trainControl(method = "cv", number = 10))
+
+varImp(rfFit_Final)
+```
+
+###Test Final model
+```{r,echo=TRUE}
+quiz <- predict(rfFit_Final, pml.testing)
+```
+
+```{r,echo=TRUE}
+print(quiz)
+```
